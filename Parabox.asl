@@ -7,17 +7,70 @@ state("Patrick's Parabox") {
 
 startup
 {
+	vars.levelsWon = 0;
+
 	vars.Log = (Action<object>)(output => print("[Patrick's Parabox] " + output));
 	vars.Unity = Assembly.Load(File.ReadAllBytes(@"Components\UnityASL.bin")).CreateInstance("UnityASL.Unity");
 	// vars.Unity.LoadSceneManager = true;
-	
-	settings.Add("intrortt", false, "Intro Return To Title");
+
+	//structure here:
+	//key: area name
+	//tuple vals in order: anim skip option name, any% split option name, 100% split option name,
+	//any% split type, 100% split type, any% level amount, 100% level amount, area name to split at if anim skipped
+	vars.splitdict = new Dictionary<string, Tuple<string, string, string, int, int, int, int, Tuple<string>>> {
+		{"Area_Intro", Tuple.Create("intrortt", "introany", "introall", 3, 3, 9, 9, "Area_Enter")},
+		{"Area_Enter", Tuple.Create("enterrtt", "enterany", "enterall", 0, 3, 12, 18, "Area_Empty")},
+		{"Area_Empty", Tuple.Create("emptyrtt", "emptyany", "emptyall", 0, 3, 7, 14, "Area_Eat")},
+		{"Area_Eat", Tuple.Create("eatrtt", "eatany", "eatall", 0, 3, 9, 13, "Area_Reference")},
+		{"Area_Reference", Tuple.Create("refrtt", "refany", "refall", 0, 3, 5, 12, "Area_Swap")},
+		{"Area_Swap", Tuple.Create("swaprtt", "swapany", "swapall", 0, 3, 1, 5, "Area_Center")},
+		{"Area_Center", Tuple.Create("centerrtt", "centerany", "centerall", 0, 3, 7, 16, "Area_Clone")},
+		{"Area_Clone", Tuple.Create("clonertt", "cloneany", "cloneall", 0, 3, 13, 25, "Area_Transfer")},
+		{"Area_Transfer", Tuple.Create("transrtt", "transany", "transall", 0, 3, 14, 29, "Area_Open")},
+		{"Area_Open", Tuple.Create("openrtt", "openany", "openall", 0, 3, 4, 12, "Area_Flip")},
+		{"Area_Flip", Tuple.Create("fliprtt", "flipany", "flipall", 0, 3, 8, 17, "Area_Cycle")},
+		{"Area_Cycle", Tuple.Create("cyclertt", "cycleany", "cycleall", 0, 3, 9, 18, "Area_Player")},
+		{"Area_Player", Tuple.Create("playerrtt", "playerany", "playerall", 0, 3, 14, 24, "Area_Possess")},
+		{"Area_Possess", Tuple.Create("possrtt", "possany", "possall", 0, 3, 9, 22, "Area_Wall")},
+		{"Area_Wall", Tuple.Create("wallrtt", "wallany", "wallall", 0, 3, 6, 15, "Area_InfiniteExit")},
+		{"Area_InfiniteExit", Tuple.Create("exitrtt", "exitany", "exitall", 0, 3, 10, 18, "Area_InfiniteEnter")},
+		{"Area_InfiniteEnter", Tuple.Create("ienterrtt", "ienterany", "ienterall", 0, 3, 10, 20, "Area_MultiInfinite")},
+		{"Area_MultiInfinite", Tuple.Create("multirtt", "multiany", "multiall", 2, 3, 0, 11, "Area_Reception")},
+		{"Area_Challenge", Tuple.Create("challrtt", "challany", "challall", 4, 3, 0, 38, "Area_Reception")},
+		{"Area_Gallery", Tuple.Create("gallrtt", "gallany", "gallall", 4, 3, 0, 3, "Area_Reception")},
+		{"Area_Priority", Tuple.Create("prirtt", "priany", "priall", 4, 3, 0, 9, "Area_Appendix")},
+		{"Area_Extrude", Tuple.Create("extrtt", "extany", "extall", 4, 3, 0, 8, "Area_Appendix")},
+		{"Area_Push", Tuple.Create("pushrtt", "pushany", "pushall", 4, 3, 0, 8, "Area_Appendix")}
+	};
+
+	string[] names = {"Intro", "Enter", "Empty", "Eat", "Reference", "Swap", "Center", "Clone", "Transfer", "Open", "Flip",
+			"Cycle", "Player", "Possess", "Wall", "Infinite Exit", "Infinite Enter", "Multi Infinite",
+			"Challenge", "Gallery", "Priority", "Extrude", "Inner Push"};
+
 	settings.Add("any", true, "Any%");
 	settings.Add("all", false, "100%");
-	settings.Add("ilany", false, "Any% ILs");
-	settings.Add("ilall", false, "100% ILs");
+	settings.Add("rtt", false, "Split On Next Area");
+	for (int i = 0; i < vars.splitdict.Count; i++) {
+		string name = names[i];
+		if (name == "Infinite Exit") {
+			name = "InfiniteExit";
+		} else if (name == "Infinite Enter") {
+			name = "InfiniteEnter";
+		} else if (name == "Multi Infinite") {
+			name = "MultiInfinite";
+		} else if (name == "Inner Push") {
+			name = "Push";
+		}
+		name = "Area_" + name;
+		var data = vars.splitdict[name];
+		if (data.Item4 != 4 && data.Item4 != 2) {
+			settings.Add(data.Item2, true, names[i], "any");
+		}
+		settings.Add(data.Item1, false, names[i], "rtt");
+		settings.Add(data.Item3, false, names[i], "all");
+	}
 	settings.Add("credits", false, "Credits Split in 100%");
-	settings.Add("ending", false, "Only Split at End");
+	settings.Add("room", false, "Split Individual Levels in Area");
 }
 
 
@@ -39,73 +92,19 @@ init
 		vars.Unity.Make<float>(world.Static, world["floors"], list["_items"], 0x20 + 0x8 * 0x4A, floor["AnimT"]).Name = "congratsAnimT";
 		vars.Unity.MakeString(savef.Static, savef["Current"], saved["RecentArea"]).Name = "recent";
 		vars.Unity.Make<int>(world.Static, world["State"]).Name = "worldState";
+		vars.Unity.Make<byte>(world.Static, world["Winning"]).Name = "winning";
 
 		return true;
 	});
-	vars.splitcount = 0;
-	vars.splittypesany = new int[] {
-		3,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		2
-	};
-	vars.splittypesall = new int[] {
-		3,
-		3,
-		3,
-		3,
-		3,
-		3,
-		3,
-		3,
-		3,
-		3,
-		3,
-		3,
-		3,
-		3,
-		3,
-		3,
-		3,
-		3,
-		4,
-		3,
-		3,
-		3,
-		3,
-		3,
-		5
-	};
 
 	vars.Unity.Load(game);
+
+	current.Recent = "";
 }
 
 update
 {
 	if (!vars.Unity.Loaded) return false;
-
-	if (timer.CurrentPhase == TimerPhase.NotRunning && vars.splitcount != 0)
-	{
-    		vars.splitcount = 0;
-	}
-
-	if (vars.splitcount == 18 && !settings["credits"]) {
-		vars.splitcount++;
-	}
 
 
 	vars.Unity.Update();
@@ -116,6 +115,24 @@ update
 	current.AnimT = vars.Unity["congratsAnimT"].Current;
 	current.State = vars.Unity["worldState"].Current;
 	current.Recent = vars.Unity["recent"].Current;
+	current.Winning = vars.Unity["winning"].Current;
+
+	if (old.Recent == "Area_Reception" || old.Recent == "Area_Appendix" || old.Recent == "") {
+		return;
+	}
+
+	var data = vars.splitdict[old.Recent];
+
+	int max = 0;
+	if (settings["any"]) {
+		max = data.Item6;
+	} else if (settings["all"]) {
+		max = data.Item7;
+	}
+
+	if (current.Recent != old.Recent && vars.levelsWon >= max) {
+		vars.levelsWon = 0;
+	}
 
 	// current.Scene = vars.Unity.Scenes.Active.Index;
 }
@@ -128,55 +145,83 @@ start
 split
 {
 	if (!vars.Unity.Loaded) return false;
-	int type = -1;
-	if (settings["ending"]) {
-		if (settings["any"] && (old.Credits == 0 && current.Credits == 1)) {
-			vars.splitcount++;
-			return true;
-		} else if (settings["all"] && (old.AnimT == 0 && current.AnimT > 0)) {
-			vars.splitcount++;
-			return true;
-		} else {
-			return false;
-		}
-	} else if (settings["intrortt"] && vars.splitcount == 0) {
-		if (current.Recent == "Area_Enter") {
-			vars.splitcount++;
-			return true;
-		} else {
-			return false;
-		}
-	}
-	if (settings["any"]) {
-		type = vars.splittypesany[vars.splitcount];
-	} else if (settings["all"]) {
-		type = vars.splittypesall[vars.splitcount];
-	} else if (settings["ilany"]) {
-		type = 0;
-	} else if (settings["ilall"]) {
-		type = 3;
-	} else {
-		type = vars.splittypesany[vars.splitcount];
-	}
 
-	if (type == 0 && (old.Unlocking == 1 && current.Unlocking == 0)) {
-		vars.splitcount++;
-		return true;
-	} else if (type == 2 && (old.Credits == 0 && current.Credits == 1)) {
-		vars.splitcount++;
-		return true;
-	} else if (type == 3 && (old.Hundred > 0 && current.Hundred == 0)) {
-		vars.splitcount++;
-		return true;
-	} else if (type == 4 && (old.State == 3 && current.State == 1)) {
-		vars.splitcount++;
-		return true;
-	} else if (type == 5 && (old.AnimT == 0 && current.AnimT > 0)) {
-		vars.splitcount++;
-		return true;
-	} else {
+	//special case for reception and appendix
+	if (old.Recent == "Area_Reception" || old.Recent == "Area_Appendix") {
+		//special case for reception
+		if (old.Recent == "Area_Reception" && settings["all"] && (old.AnimT == 0 && current.AnimT > 0)) {
+			return true;
+		}
 		return false;
 	}
+
+	//special case for credits in 100%
+	if (settings["all"] && settings["credits"] && (current.Credits == 1 || old.State == 3)) {
+		return old.State == 3 && current.State == 1;
+	}
+
+	//split data
+	var data = vars.splitdict[old.Recent];
+
+	//check if this split is even enabled
+	if (settings["any"]) {
+		if (data.Item4 == 4 || data.Item4 == 2) {
+			//special case for type 2
+			if (data.Item4 == 2 && (old.Credits == 0 && current.Credits == 1)) {
+				return true;
+			}
+			return false;
+		} else if (!settings[data.Item2]) {
+			return false;
+		}
+	} else if (settings["all"]) {
+		if (!settings[data.Item3]) {
+			return false;
+		}
+	} else {
+		return false; //this means no options are checked
+	}
+
+	//get level requirement
+	int max = 0;
+	if (settings["any"]) {
+		max = data.Item6;
+	} else if (settings["all"]) {
+		max = data.Item7;
+	}
+
+	//check for room splits
+	if (settings["room"] && (vars.levelsWon < max)) {
+		if (old.Winning == 1 && current.Winning == 0) {
+			vars.levelsWon++;
+			return true;
+		}
+	}
+
+	//check for anim skip
+	if (settings[data.Item1] && current.Recent == data.Rest.Item1) {
+		return true;
+	}
+
+	//get split type
+	int type = 0;
+	if (settings["any"]) {
+		type = data.Item4;
+	} else if (settings["all"]) {
+		type = data.Item5;
+	}
+
+	//check for gate unlock if split type is any%
+	if (type == 0) {
+		return (old.Unlocking == 1 && current.Unlocking == 0);
+	}
+
+	//check for celebration end if split type is 100%
+	if (type == 3) {
+		return (old.Hundred > 0 && current.Hundred == 0);
+	}
+	
+	return false;
 }
 
 reset
