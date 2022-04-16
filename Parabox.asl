@@ -196,6 +196,7 @@ split
 			vars.levelsWon++;
 			return true;
 		}
+		return false;
 	}
 
 	//check for anim skip
