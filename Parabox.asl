@@ -203,6 +203,9 @@ split
 	if (settings[data.Item1] && current.Recent == data.Rest.Item1) {
 		return true;
 	}
+	if (settings[data.Item1]) {
+		return false;
+	}
 
 	//get split type
 	int type = 0;
