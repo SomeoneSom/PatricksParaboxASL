@@ -1,6 +1,6 @@
 //by atpx8
 //special thanks to Ero for putting up with my absolute stupidity while making this and also finding the pointers for congratsAnimT
-//NOTE: REQUIRES UnityASL.bin (https://github.com/just-ero/asl-help/blob/main/libraries/UnityASL.bin)
+//NOTE: REQUIRES UnityASL.bin (https://github.com/just-ero/asl-help/blob/main/lib/UnityASL.bin)
 
 state("Patrick's Parabox") {
 }
